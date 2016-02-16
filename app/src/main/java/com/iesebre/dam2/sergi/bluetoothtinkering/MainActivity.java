@@ -2,7 +2,11 @@ package com.iesebre.dam2.sergi.bluetoothtinkering;
 
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -11,11 +15,31 @@ import android.view.MenuItem;
 import android.widget.Toast;
 import android.widget.ViewAnimator;
 
+import java.util.ArrayList;
+import java.util.Set;
+
 public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_ENABLE_BT = 1;
     private static final String TAG = "MainActivity";
     private BluetoothAdapter mBluetoothAdapter;
+
+    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            // When discovery finds a device
+            if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+                // Get the BluetoothDevice object from the Intent
+                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                // Add the name and address to an array adapter to show in a ListView
+
+//                mArrayAdapter.add(device.getName() + "\n" + device.getAddress());
+
+                Toast.makeText(context, device.getName(),
+                        Toast.LENGTH_SHORT).show();
+            }
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,6 +53,14 @@ public class MainActivity extends AppCompatActivity {
         } else {
             Toast.makeText(this, "Bluetooth is Available!", Toast.LENGTH_LONG).show();
         }
+
+        // Register the BroadcastReceiver
+        IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+        registerReceiver(mReceiver, filter); // Don't forget to unregister during onDestroy
+
+        // Register for broadcasts when discovery has finished
+        filter = new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+        this.registerReceiver(mReceiver, filter);
     }
 
     @Override
@@ -81,10 +113,33 @@ public class MainActivity extends AppCompatActivity {
             MenuItem item) {
 
         switch(item.getItemId()) {
-            case R.id.menu_discover:
+            case R.id.menu_discoverable:
                 Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
                 discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
                 startActivity(discoverableIntent);
+                return true;
+            case R.id.menu_discover:
+                // If we're already discovering, stop it
+                if (mBluetoothAdapter.isDiscovering()) {
+                    mBluetoothAdapter.cancelDiscovery();
+                }
+                mBluetoothAdapter.startDiscovery();
+            case R.id.menu_pairedDevices:
+                Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
+                // If there are paired devices
+                if (pairedDevices.size() > 0) {
+                    // Loop through paired devices
+                    for (BluetoothDevice device : pairedDevices) {
+                        // Add the name and address to an array adapter to show in a ListView
+                        Toast.makeText(this, device.getName(),
+                                Toast.LENGTH_SHORT).show();
+
+//                        mArrayAdapter.add(device.getName() + "\n" + device.getAddress());
+                    }
+                } else {
+                    Toast.makeText(this, "No hi ha cap dispositiu paired!",
+                            Toast.LENGTH_SHORT).show();
+                }
                 return true;
         }
 
